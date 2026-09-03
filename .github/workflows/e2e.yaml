@@ -31,11 +31,13 @@ jobs:
           set -euo pipefail
           repos="semrel analyzer-conventional analyzer-default condition-generic \
             condition-github-actions condition-gitlab-ci condition-gitea-actions \
-            provider-git generator-changelog-md generator-changelog-html \
+            provider-git provider-gitlab provider-gitea provider-bitbucket \
+            generator-changelog-md generator-changelog-html \
             generator-release-notes updater-npm updater-go updater-cargo \
             updater-python updater-maven updater-gradle updater-nuget \
             updater-terraform updater-helm updater-homebrew updater-docker \
-            hook-gitplugin publisher-generic-http packager-nfpm"
+            hook-gitplugin hook-slack hook-teams hook-matrix hook-email hook-jira \
+            publisher-generic-http publisher-oci packager-nfpm"
           for r in $repos; do
             git clone --depth 1 "https://github.com/SemRels/$r.git" "$r"
           done

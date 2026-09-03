@@ -2,6 +2,29 @@
 # Category coverage: updater (maven, gradle, nuget, terraform, helm, homebrew,
 # docker) -- every remaining local-file-only updater, stacked in one release
 # to also prove plugin composition at scale.
+#
+# IMPORTANT, found by actually running this: updater-terraform and
+# updater-homebrew both diverge from their READMEs.
+# - updater-terraform (internal/plugin/updater.go): ignores any "variable"
+#   arg entirely and just regexes the first line matching
+#   `^\s*version\s*=\s*"..."\s*$` -- a plain `version = "x"` assignment, not
+#   a `variable "name" { default = "x" }` block. There is no way to target a
+#   specific named variable.
+# - updater-homebrew (cmd/plugin/main.go + internal/plugin/updater.go):
+#   reads only SEMREL_PLUGIN_FILE (default "Formula.rb"), not
+#   SEMREL_PLUGIN_FORMULA_FILE/URL_TEMPLATE/SHA256 as documented -- those
+#   don't exist in the implementation. It regexes a Ruby `version "x"` line;
+#   there's no url/sha256 rewriting at all yet.
+# - updater-docker (internal/plugin/updater.go) doesn't touch `ARG VERSION=`
+#   at all -- SEMREL_PLUGIN_ARG_NAME isn't read anywhere. It rewrites the
+#   image *tag* on the Dockerfile's FROM line instead (SEMREL_PLUGIN_FILE/
+#   _IMAGE/_REGISTRY), e.g. `FROM myapp:0.1.0` -> `FROM myapp:0.2.0`; with no
+#   `image` arg it matches the first FROM line unconditionally, so on a
+#   fixture like `FROM alpine:3` it happily rewrites the *base image's own
+#   tag* to the release version (`FROM alpine:0.2.0`) -- silently corrupting
+#   an unrelated dependency pin. This scenario's Dockerfile now models the
+#   plugin's real, intended use (an app's own FROM line, `image` arg
+#   pinned) rather than the ARG-based scheme the README describes.
 set -euo pipefail
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/../../scripts/common.sh"
 
@@ -37,10 +60,7 @@ cat > "$REPO/src/MyApp/MyApp.csproj" <<'EOF'
 EOF
 
 cat > "$REPO/variables.tf" <<'EOF'
-variable "app_version" {
-  type    = string
-  default = "0.1.0"
-}
+version = "0.1.0"
 EOF
 
 mkdir -p "$REPO/charts/app"
@@ -56,14 +76,15 @@ cat > "$REPO/Formula/my-tool.rb" <<'EOF'
 class MyTool < Formula
   desc "e2e demo formula"
   homepage "https://example.com"
+  version "0.1.0"
   url "https://github.com/acme/tool/archive/refs/tags/v0.1.0.tar.gz"
   sha256 "0000000000000000000000000000000000000000000000000000000000000000"
 end
 EOF
 
 cat > "$REPO/Dockerfile" <<'EOF'
-FROM alpine:3
-ARG VERSION=0.1.0
+FROM alpine:3 AS base
+FROM myapp:0.1.0
 EOF
 
 commit_all "$REPO" "chore: initial commit"
@@ -102,7 +123,6 @@ plugins:
     phase: pre-tag
     args:
       file: variables.tf
-      variable: app_version
   - path: "$HELM"
     phase: pre-tag
     args:
@@ -111,14 +131,12 @@ plugins:
   - path: "$BREW"
     phase: pre-tag
     args:
-      formula_file: Formula/my-tool.rb
-      url_template: "https://github.com/acme/tool/archive/refs/tags/v{{ .Version }}.tar.gz"
-      sha256: "1111111111111111111111111111111111111111111111111111111111111111"
+      file: Formula/my-tool.rb
   - path: "$DOCKER"
     phase: pre-tag
     args:
       file: Dockerfile
-      arg_name: VERSION
+      image: myapp
 EOF
 
 ( cd "$REPO" && "$SEMREL_BIN" release --config .semrel.yaml )
@@ -127,9 +145,10 @@ assert_tag_exists "$REPO" "v0.2.0"
 assert_file_contains "$REPO/pom.xml" '<version>0.2.0</version>'
 assert_file_contains "$REPO/gradle.properties" 'version=0.2.0'
 assert_file_contains "$REPO/src/MyApp/MyApp.csproj" '<Version>0.2.0</Version>'
-assert_file_contains "$REPO/variables.tf" 'default = "0.2.0"'
-assert_file_contains "$REPO/charts/app/Chart.yaml" 'appVersion: "0.2.0"'
-assert_file_contains "$REPO/Formula/my-tool.rb" 'v0.2.0.tar.gz'
-assert_file_contains "$REPO/Dockerfile" 'ARG VERSION=0.2.0'
+assert_file_contains "$REPO/variables.tf" 'version = "0.2.0"'
+assert_file_contains "$REPO/charts/app/Chart.yaml" 'appVersion: 0.2.0'
+assert_file_contains "$REPO/Formula/my-tool.rb" 'version "0.2.0"'
+assert_file_contains "$REPO/Dockerfile" 'FROM myapp:0.2.0'
+assert_file_contains "$REPO/Dockerfile" 'FROM alpine:3'
 
 finish

@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
-# Category coverage: hook (slack, teams, matrix, email, jira) against a
-# REAL external endpoint.
+# Category coverage: hook (slack) against a REAL external endpoint.
+#
+# Optional. Scenario 18 already exercises hook-slack/teams/matrix/jira for
+# real against a local mock server -- that's the primary, always-on
+# coverage for this category. This scenario exists only as an extra
+# confidence check against a real Slack workspace, if you want it.
 #
 # Opt-in only. When actually run this posts a real message to a real Slack
 # channel. Skipped unless SEMREL_E2E_SLACK_WEBHOOK_URL is set.
 #
 # To enable Slack:
 #   export SEMREL_E2E_SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
-# For teams/matrix/email/jira, add a block below mirroring this one, using
-# the SEMREL_PLUGIN_* fields documented in hook-teams/hook-matrix/hook-email/
-# hook-jira READMEs in the workspace root.
 set -euo pipefail
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/../../scripts/common.sh"
 

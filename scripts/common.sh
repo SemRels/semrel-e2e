@@ -207,9 +207,42 @@ stop_mock_server() {
   [[ -n "$MOCK_SERVER_PID" ]] && kill "$MOCK_SERVER_PID" >/dev/null 2>&1 || true
 }
 
+MOCK_SMTP_PID=""
+
+# start_mock_smtp_server <messages-log-path> -> prints the port it's listening on
+start_mock_smtp_server() {
+  require_cmd node
+  local log="$1"
+  : > "$log"
+  local out
+  out="$(mktemp)"
+  node "$E2E_ROOT/scripts/mock-smtp-server/server.js" 0 "$log" >"$out" 2>&1 &
+  MOCK_SMTP_PID=$!
+  local port=""
+  for _ in $(seq 1 50); do
+    if [[ -s "$out" ]] && grep -q "^LISTENING " "$out"; then
+      port="$(grep "^LISTENING " "$out" | head -1 | awk '{print $2}')"
+      break
+    fi
+    sleep 0.1
+  done
+  rm -f "$out"
+  if [[ -z "$port" ]]; then
+    fail "mock SMTP server did not start"
+    echo ""
+    return 1
+  fi
+  echo "$port"
+}
+
+stop_mock_smtp_server() {
+  [[ -n "$MOCK_SMTP_PID" ]] && kill "$MOCK_SMTP_PID" >/dev/null 2>&1 || true
+}
+
 # finish - print scenario summary and exit non-zero if any assertion failed.
 finish() {
   stop_mock_server
+  stop_mock_smtp_server
   if [[ "$SCENARIO_FAILED" != "0" ]]; then
     echo "  -> scenario FAILED ($FAIL_COUNT failed, $PASS_COUNT passed)"
     exit 1
