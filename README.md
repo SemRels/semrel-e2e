@@ -48,9 +48,10 @@ Env vars:
 - `SEMREL_E2E_WORKDIR=/some/path` -- where scenario fixture repos are created
   (default: `.work/`, gitignored)
 
-As of the last full run: **20 passed, 4 skipped (missing optional local
-tools / no external credentials), 0 failed** -- see "Known issues found by
-this suite" below for what it took to get there.
+As of the last full run: **22 passed, 3 skipped (no external credentials
+available), 0 failed** -- see "Known issues found by this suite" below for
+what it took to get there, and "Still not covered" for the 3 remaining
+skips and exactly what would close them.
 
 ## Real execution, safe by default
 
@@ -69,13 +70,17 @@ scenarios split into two groups:
   covers every plugin category except the parts that are inherently
   external (a real GitHub/Bitbucket release, a real nfpm/oras toolchain and
   OCI registry).
-- **External or extra-tooling, opt-in (skipped unless available).**
+- **External, opt-in (skipped unless you export credentials).**
   `13-provider-external` (github, bitbucket) and `14-hooks-external`
   (slack, as an extra confidence check beyond the local mock) talk to a
   real account and skip per-block unless you export `SEMREL_E2E_*`
-  credentials -- read the comment header in each file. `11-packager-nfpm`
-  and `20-publisher-oci` skip themselves unless `nfpm`/`oras` are on PATH
-  (and, for OCI, `SEMREL_E2E_OCI_REF` points at a registry you can push to).
+  credentials -- read the comment header in each file. `20-publisher-oci`
+  needs `SEMREL_E2E_OCI_REF` pointing at a real, already-trusted registry
+  (see its header for why a local one can't substitute: the plugin
+  hardcodes `oras push` with no `--plain-http`/`--insecure` support).
+- `11-packager-nfpm` runs for real once `nfpm` is on PATH -- get it with
+  `go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest` (no
+  admin/Docker needed).
 
 `scripts/run-all.sh` treats exit code `77` as skipped, distinct from a real
 failure.
@@ -89,27 +94,42 @@ failure.
 | Updater | 02, 03, 04, 05, 16, 23 | every updater plugin in the workspace, incl. two confirmed README/implementation mismatches (05) |
 | Generator | 02, 08, 24 | changelog-md, changelog-html, release-notes, plus `commit_changelog: false` handoff to a generator plugin |
 | Hook | 09, 14\*, 18, 19 | gitplugin, slack/teams/matrix/jira (local mock), email (local SMTP), slack (14, opt-in real) |
-| Publisher | 10, 20\* | generic-http (local mock, real); oci (20, opt-in, needs `oras` + a reachable registry) |
-| Packager | 11\* | nfpm; opt-in, needs `nfpm` on PATH |
+| Publisher | 10, 20\* | generic-http (local mock, real); oci (20, opt-in real -- needs a trusted registry, see below) |
+| Packager | 11 | nfpm; real, needs `nfpm` on PATH (`go install`-able, see below) |
 | Analyzer | 12 | best-effort smoke test, see scenario header -- not wired into `semrel release` yet |
 | Core config | 15, 16, 21, 22, 23 | prerelease channels, workspace independent/lockstep, version_ceiling, tag_exists_strategy |
+| Core CLI | 25 | lint, commitlint, doctor, config init/show/validate/set, migrate |
 
 \* opt-in / conditionally skipped -- see the scenario's header comment for exactly what it needs.
 
 ### Still not covered
 
-- `hook-teams`/`hook-matrix`/`hook-email`/`hook-jira` against a *real* Teams/
-  Matrix/SMTP/Jira endpoint (only the local-mock path in scenario 18/19 is
-  exercised) -- add opt-in blocks to `14-hooks-external` following its Slack
-  block as a template if you want that extra confidence check.
-- `provider-gitlab`/`provider-gitea` against a *real* instance (only the
-  local-mock path in scenario 17 is exercised).
-- `publisher-oci` against a real push (scenario 20 exists but will skip
-  without `oras` + `SEMREL_E2E_OCI_REF`; no Docker was available on the
-  machine this was built on, so it's never been run against a real/local
-  registry).
-- `packager-nfpm` end-to-end (scenario 11 exists but will skip without
-  `nfpm`; never actually run on the machine this was built on).
+Everything below needs a credential or resource only you can provide --
+these are the only 3 scenarios that skip in the last full run, and each
+tells you exactly what to export when you run it:
+
+- **`13-provider-external`** (github, bitbucket) -- needs a real account +
+  a scratch repo you own. Export `SEMREL_E2E_GITHUB_TOKEN`/`_OWNER`/`_REPO`
+  and/or `SEMREL_E2E_BITBUCKET_APP_PASSWORD`/`_USERNAME`/`_WORKSPACE`/`_REPO`
+  (see the file header for exact names).
+- **`14-hooks-external`** (slack) -- an extra confidence check beyond the
+  local-mock coverage in scenario 18. Export
+  `SEMREL_E2E_SLACK_WEBHOOK_URL`. (teams/matrix/jira/email don't have an
+  external variant here at all -- only slack does; add one following its
+  block as a template if you want the same extra check for the others.)
+- **`20-publisher-oci`** -- needs `oras` (`go install
+  oras.land/oras/cmd/oras@latest`) and `SEMREL_E2E_OCI_REF` pointing at a
+  real, already-TLS-trusted registry (ghcr.io/..., a company registry,
+  etc.) you're logged into via `oras login`. A local plain-HTTP registry
+  was tried and works as a real OCI server, but publisher-oci's own `oras
+  push` call has no `--plain-http`/`--insecure` support to talk to one --
+  see the scenario header.
+
+`provider-gitlab`/`provider-gitea` (scenario 17) and `hook-teams`/`hook-
+matrix`/`hook-jira`/`hook-email` (scenarios 18/19) are exercised for real,
+just against a local mock/SMTP catcher rather than a production instance --
+that's a deliberate, permanent design choice (see "Real execution, safe by
+default" above), not a gap to close.
 
 ## Known issues found by this suite
 

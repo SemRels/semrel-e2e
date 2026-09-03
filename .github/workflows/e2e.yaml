@@ -8,8 +8,9 @@ on:
 
 # Checks out semrel-e2e plus every plugin repo it needs as siblings, matching
 # the workspace layout scripts/common.sh expects (../semrel, ../updater-npm,
-# ...), then runs the full local/safe scenario suite. External scenarios
-# (13, 14) stay skipped here since no SEMREL_E2E_* credentials are set.
+# ...), then runs the full local/safe scenario suite. External/credentialed
+# scenarios (13, 14, 20) stay skipped here since no SEMREL_E2E_* env vars
+# are set on this runner.
 jobs:
   scenarios:
     runs-on: ubuntu-latest
@@ -41,6 +42,9 @@ jobs:
           for r in $repos; do
             git clone --depth 1 "https://github.com/SemRels/$r.git" "$r"
           done
+
+      - name: Install nfpm (for scenario 11)
+        run: go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
 
       - name: Run e2e scenarios
         working-directory: semrel-e2e

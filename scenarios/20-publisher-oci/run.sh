@@ -1,14 +1,24 @@
 #!/usr/bin/env bash
 # Category coverage: publisher (oci).
-# Like packager-nfpm, this is documented as "planned" upstream and not wired
-# into the semrel release pipeline's phases yet, and it shells out to the
-# real `oras` CLI, which also needs a real (or locally-run) OCI registry to
-# push to -- there's no equivalent of "point a URL arg at a mock server"
-# here, since OCI push is a multi-step protocol (blob sessions, manifest
-# PUT, ...) a generic HTTP mock can't satisfy. Skips itself (exit 77) unless
-# `oras` is installed; even then, set SEMREL_E2E_OCI_REF to a registry you
-# can actually push to (e.g. a local `registry:2` container, or a real
-# ghcr.io/... ref you're authenticated for) to run it for real.
+# Like packager-nfpm, this is documented as "planned" upstream and not
+# wired into the semrel release pipeline's phases yet, so this invokes the
+# plugin binary directly (same env-var contract semrel's orchestrator would
+# use). It shells out to the real `oras` CLI
+# (go install oras.land/oras/cmd/oras@latest).
+#
+# Tried and reverted: a local plain-HTTP registry (github.com/distribution/
+# distribution's `registry` binary, no Docker needed) DOES work as a real
+# OCI registry, but publisher-oci's own BuildOrasArgs() (internal/plugin/
+# provider.go) hardcodes `oras push <ref> <artifacts...>` with no
+# `--plain-http`/`--insecure` flag and no env var to add one -- oras then
+# refuses with "server gave HTTP response to HTTPS client". Making that
+# succeed would need a registry with a certificate the system already
+# trusts, which means either a real hosted registry or adding a
+# self-signed CA to the OS trust store -- the latter is a system security
+# change out of scope for a test scenario. So this genuinely needs
+# SEMREL_E2E_OCI_REF pointing at a real, already-trusted registry
+# (ghcr.io/..., a company registry, etc.) you're authenticated to via
+# `oras login` or Docker credential helpers. Skips itself otherwise.
 set -euo pipefail
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/../../scripts/common.sh"
 

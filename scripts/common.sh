@@ -239,10 +239,59 @@ stop_mock_smtp_server() {
   [[ -n "$MOCK_SMTP_PID" ]] && kill "$MOCK_SMTP_PID" >/dev/null 2>&1 || true
 }
 
+# --- local OCI registry (for publisher-oci) -----------------------------
+# A real, pure-Go OCI Distribution server (github.com/distribution/distribution
+# cmd/registry) -- not a mock. Install with:
+#   go install github.com/distribution/distribution/v3/cmd/registry@latest
+
+REGISTRY_PID=""
+
+# start_local_registry <storage-dir> -> prints "127.0.0.1:<port>"
+start_local_registry() {
+  require_cmd registry
+  local storage_dir="$1"
+  mkdir -p "$storage_dir"
+  local config
+  config="$(mktemp)"
+  local port
+  port=$(( (RANDOM % 20000) + 20000 ))
+  cat > "$config" <<EOF
+version: 0.1
+log:
+  level: error
+storage:
+  filesystem:
+    rootdirectory: $(native_path "$storage_dir")
+http:
+  addr: 127.0.0.1:$port
+EOF
+  registry serve "$config" >"$storage_dir/../registry.log" 2>&1 &
+  REGISTRY_PID=$!
+  local ready=""
+  for _ in $(seq 1 50); do
+    if curl -s -o /dev/null "http://127.0.0.1:$port/v2/"; then
+      ready=1
+      break
+    fi
+    sleep 0.1
+  done
+  if [[ -z "$ready" ]]; then
+    fail "local OCI registry did not start"
+    echo ""
+    return 1
+  fi
+  echo "127.0.0.1:$port"
+}
+
+stop_local_registry() {
+  [[ -n "$REGISTRY_PID" ]] && kill "$REGISTRY_PID" >/dev/null 2>&1 || true
+}
+
 # finish - print scenario summary and exit non-zero if any assertion failed.
 finish() {
   stop_mock_server
   stop_mock_smtp_server
+  stop_local_registry
   if [[ "$SCENARIO_FAILED" != "0" ]]; then
     echo "  -> scenario FAILED ($FAIL_COUNT failed, $PASS_COUNT passed)"
     exit 1
