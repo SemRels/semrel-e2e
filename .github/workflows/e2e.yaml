@@ -44,4 +44,4 @@ jobs:
 
       - name: Run e2e scenarios
         working-directory: semrel-e2e
-        run: ./scripts/run-all.sh
+        run: bash scripts/run-all.sh
