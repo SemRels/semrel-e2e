@@ -1,0 +1,45 @@
+name: e2e
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Checks out semrel-e2e plus every plugin repo it needs as siblings, matching
+# the workspace layout scripts/common.sh expects (../semrel, ../updater-npm,
+# ...), then runs the full local/safe scenario suite. External scenarios
+# (13, 14) stay skipped here since no SEMREL_E2E_* credentials are set.
+jobs:
+  scenarios:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: semrel-e2e
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Checkout sibling plugin repos
+        run: |
+          set -euo pipefail
+          repos="semrel analyzer-conventional analyzer-default condition-generic \
+            condition-github-actions condition-gitlab-ci condition-gitea-actions \
+            provider-git generator-changelog-md generator-changelog-html \
+            generator-release-notes updater-npm updater-go updater-cargo \
+            updater-python updater-maven updater-gradle updater-nuget \
+            updater-terraform updater-helm updater-homebrew updater-docker \
+            hook-gitplugin publisher-generic-http packager-nfpm"
+          for r in $repos; do
+            git clone --depth 1 "https://github.com/SemRels/$r.git" "$r"
+          done
+
+      - name: Run e2e scenarios
+        working-directory: semrel-e2e
+        run: ./scripts/run-all.sh
