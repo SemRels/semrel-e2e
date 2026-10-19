@@ -29,21 +29,27 @@ const server = http.createServer((req, res) => {
       bodyText: body.toString('utf8'),
     };
     fs.appendFileSync(logPath, JSON.stringify(record) + '\n');
-    // Two real plugins decode this response into a typed struct, and they
+    // Real plugins decode this response into a typed struct, and they
     // disagree on shape -- so route on the path instead of one-size-fits-all:
     // - provider-gitlab/gitea POST to a path containing "releases" and
     //   require both HTTP 201 (gitlab checks this exactly) and a numeric
     //   `id` (gitea's createReleaseResponse.id is int64).
+    // - provider-gitlab/gitea also GET associated merge/pull requests after
+    //   creating a release (comments enabled by default) and expect a JSON
+    //   array response.
     // - hook-jira GETs a Jira-style project payload where `id` must be a
     //   STRING (Jira's real API returns numeric-looking string ids).
     // Everything else in this suite (slack/teams/matrix, generic-http
-    // publisher) only checks the status is in the 2xx range, so both
+    // publisher) only checks the status is in the 2xx range, so these
     // branches stay compatible with them.
     const isReleaseCall = req.url.includes('releases');
+    const isPullListCall = req.url.includes('/merge_requests') || req.url.includes('/pulls');
     const status = isReleaseCall ? 201 : 200;
     const responseBody = isReleaseCall
       ? { ok: true, id: 1, url: 'http://127.0.0.1/mock-release/1' }
-      : { ok: true, id: '1', key: 'REL', name: 'mock', url: 'http://127.0.0.1/mock/1' };
+      : isPullListCall
+        ? []
+        : { ok: true, id: '1', key: 'REL', name: 'mock', url: 'http://127.0.0.1/mock/1' };
     res.writeHead(status, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(responseBody));
   });
