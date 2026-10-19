@@ -91,9 +91,9 @@ failure.
 |---|---|---|
 | Condition | 01, 03, 06, 07, 15 | negative path (06) and all three CI-gate plugins, including their undocumented required token vars (07) |
 | Provider | 01, 02, 08, 09, 13\*, 15, 17 | git (local), gitlab+gitea (local mock), github+bitbucket (13, opt-in real) |
-| Updater | 02, 03, 04, 05, 16, 23 | every updater plugin in the workspace, incl. two confirmed README/implementation mismatches (05) |
-| Generator | 02, 08, 24 | changelog-md, changelog-html, release-notes, plus `commit_changelog: false` handoff to a generator plugin |
-| Hook | 09, 14\*, 18, 19 | gitplugin, slack/teams/matrix/jira (local mock), email (local SMTP), slack (14, opt-in real) |
+| Updater | 02, 03, 04, 05, 16, 23, 26 | every updater plugin in the workspace, including generic glob/regex replacement with assertions (26) |
+| Generator | 02, 08, 24, 26 | changelog-md, changelog-html, release-notes, `commit_changelog: false` handoff, and exec-generated notes |
+| Hook | 09, 14\*, 18, 19, 26 | gitplugin, exec, slack/teams/matrix/jira (local mock), email (local SMTP), slack (14, opt-in real) |
 | Publisher | 10, 20\* | generic-http (local mock, real); oci (20, opt-in real -- needs a trusted registry, see below) |
 | Packager | 11 | nfpm; real, needs `nfpm` on PATH (`go install`-able, see below) |
 | Analyzer | 12 | best-effort smoke test, see scenario header -- not wired into `semrel release` yet |
