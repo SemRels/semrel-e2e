@@ -32,16 +32,24 @@ jobs:
         run: |
           set -euo pipefail
           repos="semrel analyzer-conventional analyzer-default condition-generic \
+            condition-bitbucket-pipelines condition-circleci \
             condition-github-actions condition-gitlab-ci condition-gitea-actions \
-            provider-git provider-gitlab provider-gitea provider-bitbucket \
+            provider-github provider-git provider-gitlab provider-gitea provider-bitbucket \
             generator-changelog-md generator-changelog-html \
             generator-release-notes updater-npm updater-go updater-cargo \
+            updater-composer updater-pubspec updater-zig \
             updater-python updater-maven updater-gradle updater-nuget \
             updater-terraform updater-helm updater-homebrew updater-docker updater-replace \
-            hook-exec hook-gitplugin hook-slack hook-teams hook-matrix hook-email hook-jira \
-            publisher-generic-http publisher-oci packager-nfpm"
+            hook-discord hook-exec hook-gitplugin hook-slack hook-teams hook-matrix hook-email hook-jira \
+            publisher-crates publisher-docker publisher-generic-http publisher-npm publisher-oci publisher-pypi \
+            packager-nfpm plugin-template"
           for r in $repos; do
-            git clone --depth 1 "https://github.com/SemRels/$r.git" "$r"
+            git clone "https://github.com/SemRels/$r.git" "$r"
+            if git -C "$r" show-ref --verify --quiet refs/remotes/origin/feat/dry-run-plugin-contract; then
+              git -C "$r" checkout feat/dry-run-plugin-contract
+            elif git -C "$r" show-ref --verify --quiet refs/remotes/origin/feat/dry-run-contract; then
+              git -C "$r" checkout feat/dry-run-contract
+            fi
           done
 
       - name: Install nfpm (for scenario 11)

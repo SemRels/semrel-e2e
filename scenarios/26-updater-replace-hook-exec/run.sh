@@ -77,7 +77,7 @@ assert_file_contains "$REPO/README.md" "version-0.2.0"
 assert_file_contains "$REPO/docs/guide.md" "version-0.2.0"
 assert_file_contains "$REPO/docs/archive/old.md" "version-0.1.0"
 assert_file_contains "$REPO/Dockerfile" "ARG VERSION=0.2.0"
-assert_file_contains "$REPO/exec-version.txt" "v0.2.0"
-assert_file_contains "$REPO/CHANGELOG.md" "exec notes for v0.2.0"
+assert_file_contains "$REPO/exec-version.txt" "0.2.0"
+assert_file_contains "$REPO/CHANGELOG.md" "exec notes for 0.2.0"
 
 finish
