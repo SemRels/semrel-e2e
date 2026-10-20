@@ -115,8 +115,7 @@ EOF
 ( cd "$REPO" && "$SEMREL_BIN" workspace release --config "$(native_path "$REPO/.semrel.yaml")" )
 
 assert_tag_exists "$REPO" "packages/api@v0.2.0"
-# Documents the SEMREL_VERSION/tagPrefix bug above -- not the correct value.
-assert_file_contains "$REPO/packages/api/package.json" '"version": "packages/api@v0.2.0"'
+assert_file_contains "$REPO/packages/api/package.json" '"version": "0.2.0"'
 
 assert_tag_absent "$REPO" "packages/ui@v0.2.0"
 assert_file_contains "$REPO/packages/ui/package.json" '"version": "0.1.0"'

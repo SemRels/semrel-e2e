@@ -98,7 +98,7 @@ failure.
 | Packager | 11 | nfpm; real, needs `nfpm` on PATH (`go install`-able, see below) |
 | Analyzer | 12 | best-effort smoke test, see scenario header -- not wired into `semrel release` yet |
 | Core config | 15, 16, 21, 22, 23 | prerelease channels, workspace independent/lockstep, version_ceiling, tag_exists_strategy |
-| Core CLI | 25 | lint, commitlint, doctor, config init/show/validate/set, migrate |
+| Core CLI | 25, 27 | lint, commitlint, doctor, config init/show/validate/set, migrate, and full `--dry-run` plugin conformance (27) |
 
 \* opt-in / conditionally skipped -- see the scenario's header comment for exactly what it needs.
 
